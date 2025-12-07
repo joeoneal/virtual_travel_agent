@@ -31,7 +31,7 @@ class SearchFlightsTool(Tool):
 
     def forward(self, origin: str, destination: str, departure_date: str) -> str:
         print('sleeping')
-        time.sleep(500)
+        time.sleep(0.5)
         print('done sleeping')
         response = self.amadeus.shopping.flight_offers_search.get(
             originLocationCode = origin,
