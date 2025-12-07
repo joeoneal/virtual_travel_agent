@@ -1,14 +1,14 @@
 from smolagents import ToolCallingAgent
 import model_utils
 
-from tools.search_flights import SearchFlightsTool
+from tools.search_flights import FlightSearchTool
 from tools.search_hotels import HotelSearchTool
 
 def build_agent(verbose: int = 1) -> ToolCallingAgent:
     model = model_utils.google_build_reasoning_model()
 
     tools = [
-        SearchFlightsTool(),
+        FlightSearchTool(),
         HotelSearchTool()
     ]
 

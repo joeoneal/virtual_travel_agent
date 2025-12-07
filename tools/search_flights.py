@@ -2,7 +2,7 @@ from smolagents import Tool
 from tools.amadeus_client import AmadeusClient
 import time
 
-class SearchFlightsTool(Tool):
+class FlightSearchTool(Tool):
     name = "search_flights"
 
     description= "Searchs for available flights using Amadeus API. Returns a list of available flights with both prices and airline codes."
