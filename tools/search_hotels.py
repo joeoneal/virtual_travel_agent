@@ -1,17 +1,17 @@
 from smolagents import Tool
-from tools.amadeus_client import AmadeusClient
+from tools.serp_client import SerpApiClient
 import time
 
 class HotelSearchTool(Tool):
     name = "search_hotels"
     description = (
-        "Searches for hotel offers in a specific city. "
-        "Returns a list of hotels with available rooms and prices."
+        "Searches for hotel prices and availability in a specific city. "
+        "Returns a list of top hotels with prices, totals, and booking links."
     )
     inputs = {
-        "city_code": {
+        "city_name": {
             "type": "string",
-            "description": "The 3-letter IATA code for the city."
+            "description": "The city name (e.g., 'Denver', 'New York')."
         },
         "check_in_date": {
             "type": "string",
@@ -26,42 +26,37 @@ class HotelSearchTool(Tool):
 
     def __init__(self):
         super().__init__()
-        self.amadeus = AmadeusClient().get_client()
+        self.client = SerpApiClient()
 
-    def forward(self, city_code: str, check_in_date: str, check_out_date: str) -> str:
+    def forward(self, city_name: str, check_in_date: str, check_out_date: str) -> str:
         print('sleeping')
-        time.sleep(0.5)
+        time.sleep(1)
         print('done sleeping')
 
-        hotels_response = self.amadeus.reference_data.locations.hotels.by_city.get(
-            cityCode=city_code
-        )
+        params = {
+            "engine": "google_hotels",
+            "q": f"Hotels in {city_name}",
+            "check_in_date": check_in_date,
+            "check_out_date": check_out_date,
+            "currency": "USD",
+            "hl": "en"
+        }
 
-        if not hotels_response.data:
-            return "No hotels found in this city."
+        results = self.client.search(params)
+        
+        search_link = results.get('search_metadata', {}).get("google_hotels_url", "No link available")
 
-        hotel_ids = [hotel['hotelId'] for hotel in hotels_response.data[:5]]
-        hotel_ids_str = ",".join(hotel_ids)
+        if "properties" not in results:
+                return f"No hotels found. Try searching here: {search_link}"
 
-        response = self.amadeus.shopping.hotel_offers_search.get(
-            hotelIds=hotel_ids_str,
-            checkInDate=check_in_date,
-            checkOutDate=check_out_date,
-            adults=1,
-            currency='USD',
-            bestRateOnly=True
-        )
+        hotel_options = []
+        for hotel in results["properties"][:5]:
+            name = hotel.get("name", "Unknown Hotel")
+            price = hotel.get("rate_per_night", {}).get("lowest", "N/A")
+            total = hotel.get("total_rate", {}).get("lowest", "N/A")
+            
+            link = hotel.get("link", search_link)
+            
+            hotel_options.append(f"Hotel: {name}, Nightly: {price}, Total: {total}, Link: {link}")
 
-        if not response.data:
-            return "No hotel offers found for these dates."
-
-        results = []
-        for offer in response.data:
-            hotel_name = offer['hotel'].get('name', 'Unknown Hotel')
-            if 'offers' in offer and len(offer['offers']) > 0:
-                price = offer['offers'][0]['price']['total']
-                currency = offer['offers'][0]['price']['currency']
-                results.append(f"Hotel: {hotel_name}, Total Price: {price} {currency}")
-
-        print(results)
-        return (results)
+        return "\n\n".join(hotel_options)

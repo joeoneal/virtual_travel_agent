@@ -24,9 +24,9 @@ def get_api_key(key_name):
 
 ########################################################################
 from smolagents import OpenAIServerModel
-def google_build_reasoning_model(model_id="gemini-2.5-flash"):
-    key_name = "GEMINI_API_KEY"
-    api_base = "https://generativelanguage.googleapis.com/v1beta/openai/"
+def groq_build_reasoning_model(model_id="llama-3.3-70b-versatile"):
+    key_name = "GROQ_KEY"
+    api_base = "https://api.groq.com/openai/v1"
     api_key = get_api_key(key_name)
     
     model = OpenAIServerModel(model_id=model_id,

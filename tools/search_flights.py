@@ -1,62 +1,86 @@
 from smolagents import Tool
-from tools.amadeus_client import AmadeusClient
+from tools.serp_client import SerpApiClient
 import time
 
 class FlightSearchTool(Tool):
     name = "search_flights"
 
-    description= "Searchs for available flights using Amadeus API. Returns a list of available flights with both prices and airline codes."
-
-    inputs= {
-        "origin":{
+    description = (
+        "Searches for real-time flight options using Google Flights data. "
+        "Returns a list of flight options with airlines, prices, and duration. "
+        "If you want a round trip, you MUST provide a return_date."
+    )
+    inputs = {
+        "origin": {
             "type": "string",
-            "description": "3-letter IATA code for the flight departure city."
+            "description": "3-letter IATA code for departure (example: 'SLC')."
         },
-        
         "destination": {
             "type": "string",
-            "description": "3-letter IATA code for the flight arrival city."
+            "description": "3-letter IATA code for arrival (example 'DEN')."
         },
-
         "departure_date": {
             "type": "string",
-            "description": "The date of departure in 'YYYY-MM-DD' format"
+            "description": "Date in 'YYYY-MM-DD' format."
         },
+        "return_date": {
+            "type": "string",
+            "description": "Date in 'YYYY-MM-DD' format. Optional. If omitted, searches one-way.",
+            "nullable": True
+        }
     }
     output_type = "string"
 
     def __init__(self):
         super().__init__()
-        self.amadeus = AmadeusClient().get_client()
+        self.client = SerpApiClient()
 
-    def forward(self, origin: str, destination: str, departure_date: str) -> str:
+    def forward(self, origin: str, destination: str, departure_date: str, return_date: str = None) -> str:
         print('sleeping')
         time.sleep(0.5)
         print('done sleeping')
-        response = self.amadeus.shopping.flight_offers_search.get(
-            originLocationCode = origin,
-            destinationLocationCode = destination,
-            departureDate = departure_date,
-            adults=1,
-            max =5
-        )
 
-        if not response.data:
-            return("No flights found for the requested criteria.")
+        flight_type = "2"
         
-        ## time to parse
+        if return_date:
+            flight_type = "1"
 
-        results = []
-        for flight in response.data:
-            price = flight['price']['total']
-            currency = 'USD'
-            airline = flight['itineraries'][0]['segments'][0]['carrierCode']
-            results.append(f'Flight: Airline {airline}, Price: {price} {currency}')
+        params = {
+            "engine": "google_flights",
+            "departure_id": origin,
+            "arrival_id": destination,
+            "outbound_date": departure_date,
+            "return_date": return_date, 
+            "type": flight_type,        
+            "currency": "USD",
+            "hl": "en",
+        }
 
-        print(results)
-        return results
+        print(f"Searching SerpApi for {origin} -> {destination} ({'Round Trip' if return_date else 'One Way'})...")
+        
+        results = self.client.search(params)
+        
+        if "error" in results:
+            error_msg = results["error"]
+            print(f"SERPAPI ERROR: {error_msg}")
+            return f"API Error: {error_msg}"
+        
+        link = results.get('search_metadata', {}).get("google_flights_url", "No link available")
 
+        if "best_flights" not in results:
+            return f"No flights found. \nYou are welcome to search for flights here: {link}"
+        
+        flights = []
 
+        best_flights = results.get("best_flights", [])
+        
+        for flight in best_flights[:5]:
+            price = flight.get("price", "N/A")
+            airline = "Unknown Airline"
+            if "flights" in flight and len(flight["flights"]) > 0:
+                airline = flight["flights"][0].get("airline", "Unknown")
+            
+            duration = flight.get("total_duration", "N/A")
+            flights.append(f"Flight: {airline}, Price: {price}, Duration: {duration}")
 
-
-    
+        return "\n".join(flights) + f'\n\nBooking Link: {link}'
