@@ -80,7 +80,6 @@ class FlightSearchTool(Tool):
             if "flights" in flight and len(flight["flights"]) > 0:
                 airline = flight["flights"][0].get("airline", "Unknown")
             
-            duration = flight.get("total_duration", "N/A")
-            flights.append(f"Flight: {airline}, Price: {price}, Duration: {duration}")
+            flights.append(f"Flight: {airline}, Price: {price}, Link: {link}")
 
         return "\n".join(flights) + f'\n\nBooking Link: {link}'
